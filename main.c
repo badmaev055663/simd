@@ -11,7 +11,7 @@
 #define OMP1 2
 #define OMP2 3
 #define INTRIN 4
-
+#define SUPER 5
 
 void rand_fill_vec(float* vec, int n)
 {
@@ -54,6 +54,18 @@ void vec_sum_intrin(float *a, float *b, float *c, int n)
     }
 }
 
+void vec_sum_super(float *a, float *b, float *c, int n)
+{
+    int m = n / 8;
+    #pragma omp parallel for
+	for (int i = 0; i < m; i++) {
+        __m256 vec1 = _mm256_loadu_ps(a + i * 8);
+        __m256 vec2 = _mm256_loadu_ps(b + i * 8);
+        __m256 res = _mm256_add_ps(vec1, vec2);
+        _mm256_storeu_ps(c + i * 8, res);
+    }
+}
+
 
 double vec_sum_test(int n, int cnt, int opt)
 {
@@ -78,6 +90,9 @@ double vec_sum_test(int n, int cnt, int opt)
             break;
             case INTRIN:
             vec_sum_intrin(vec1, vec2, res, n);
+            break;
+            case SUPER:
+            vec_sum_super(vec1, vec2, res, n);
             break;
         }
         double t2 = omp_get_wtime();
@@ -106,6 +121,9 @@ void vec_sum_bench(int start, int steps, int opt)
         case INTRIN:
         printf("testing intrinsic\n");
         break;
+        case SUPER:
+        printf("testing intrinsic + parallel\n");
+        break;
     }
     for (int i = 0; i < steps; i++) {
         double t = vec_sum_test(n, 5, opt);
@@ -127,9 +145,10 @@ int main(int argc, char *argv[])
 	else
 		printf("does not support avx512\n");
 
-    vec_sum_bench(1000, 4, DEFAULT);
+    //vec_sum_bench(10000, 4, DEFAULT);
+    //vec_sum_bench(2000000, 4, INTRIN);
+    //vec_sum_bench(2000000, 4, SUPER);
     vec_sum_bench(1000, 4, OMP1);
-    vec_sum_bench(1000, 4, INTRIN);
     
 	
     return 0;
