@@ -8,8 +8,9 @@
 #define MAX_RAND_VAL 1000
 
 #define DEFAULT 1
-#define OMP 2
-#define INTRIN 3
+#define OMP1 2
+#define OMP2 3
+#define INTRIN 4
 
 
 void rand_fill_vec(float* vec, int n)
@@ -35,9 +36,22 @@ void vec_sum_omp(float *a, float *b, float *c, int n)
 		c[i] = a[i] + b[i];
 }
 
+void vec_sum_omp2(float *a, float *b, float *c, int n)
+{
+    #pragma omp parallel for simd
+	for (int i = 0; i < n; i++)
+		c[i] = a[i] + b[i];
+}
+
+
 void vec_sum_intrin(float *a, float *b, float *c, int n)
 {
-	// placeholder
+	for (int i = 0; i < n / 8; i++) {
+        __m256 vec1 = _mm256_loadu_ps(a + i * 8);
+        __m256 vec2 = _mm256_loadu_ps(b + i * 8);
+        __m256 res = _mm256_add_ps(vec1, vec2);
+        _mm256_storeu_ps(c + i * 8, res);
+    }
 }
 
 
@@ -52,13 +66,15 @@ double vec_sum_test(int n, int cnt, int opt)
         rand_fill_vec(vec1, n);
         rand_fill_vec(vec2, n);
         double t1 = omp_get_wtime();
-        //int res;
         switch (opt) {
             case DEFAULT:
             vec_sum(vec1, vec2, res, n);
             break;
-            case OMP:
+            case OMP1:
             vec_sum_omp(vec1, vec2, res, n);
+            break;
+            case OMP2:
+            vec_sum_omp2(vec1, vec2, res, n);
             break;
             case INTRIN:
             vec_sum_intrin(vec1, vec2, res, n);
@@ -77,6 +93,20 @@ double vec_sum_test(int n, int cnt, int opt)
 void vec_sum_bench(int start, int steps, int opt)
 {
     int n = start;
+    switch (opt) {
+        case DEFAULT:
+        printf("testing default\n");
+        break;
+        case OMP1:
+        printf("testing omp simd\n");
+        break;
+        case OMP2:
+        printf("testing omp simd + parallel\n");
+        break;
+        case INTRIN:
+        printf("testing intrinsic\n");
+        break;
+    }
     for (int i = 0; i < steps; i++) {
         double t = vec_sum_test(n, 5, opt);
         printf("average time (us): %.2lf, data size: %d\n", t * 1000000, n);
@@ -97,8 +127,9 @@ int main(int argc, char *argv[])
 	else
 		printf("does not support avx512\n");
 
-    vec_sum_bench(200, 4, DEFAULT);
-    vec_sum_bench(200, 4, OMP);
+    vec_sum_bench(1000, 4, DEFAULT);
+    vec_sum_bench(1000, 4, OMP1);
+    vec_sum_bench(1000, 4, INTRIN);
     
 	
     return 0;

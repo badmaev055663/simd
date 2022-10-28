@@ -1,14 +1,18 @@
 CC = gcc
 LIBS_OMP = -fopenmp
-CC_FLAGS = -O2
-SRC = main.c 
+CC_FLAGS1 = -O2 -mavx
+CC_FLAGS2 = -O3 -mavx -march=native
+SRC = main.c
 
-omp: $(SRC)
-	$(CC) $(SRC) -o omp $(CC_FLAGS) $(LIBS_OMP)
+omp1: $(SRC)
+	$(CC) $(SRC) -o omp $(CC_FLAGS1) $(LIBS_OMP)
 
-intrin: $(SRC)
-	$(CC) $(SRC) -o intrin $(CC_FLAGS)
+omp2: $(SRC)
+	$(CC) $(SRC) -o omp $(CC_FLAGS2) $(LIBS_OMP)
+
+asm_omp: omp
+	objdump -D -M intel omp > asm_dump
 
 clean:
 	rm -f omp
-	rm -f intrin
+	rm -f asm_dump
